@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 import argparse
 import os
 import base64
@@ -7,14 +9,18 @@ from multiprocessing import Pool, cpu_count
 
 
 def decode_qr_code(file_path):
-    img = Image.open(file_path)
-    decoded_objects = decode(img)
-    if decoded_objects:
-        data = decoded_objects[0].data.decode("utf-8")
-        index = int(os.path.splitext(
-            os.path.basename(file_path))[0].split('_')[-1])
-        return (index, data)
-    else:
+    try:
+        img = Image.open(file_path)
+        decoded_objects = decode(img)
+        if decoded_objects:
+            data = decoded_objects[0].data.decode("utf-8")
+            index = int(os.path.splitext(
+                os.path.basename(file_path))[0].split('_')[-1])
+            return (index, data)
+        else:
+            return None
+    except Exception as e:
+        print(f"Error decoding {file_path}: {e}")
         return None
 
 
