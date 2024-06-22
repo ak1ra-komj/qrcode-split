@@ -27,14 +27,14 @@ Running the script:
 
 ```
 # To calculate the total number of QR code files needed:
-python file_to_qr.py <path_to_input_file> -c <chunk_size_in_bytes> -C
+python qrcode-split.py.py <path_to_input_file> -c <chunk_size_in_bytes> -C
 
 # For example:
-python file_to_qr.py input/input-1.mp4 -c 1900 -C
+python qrcode-split.py.py input/input-1.mp4 -c 1900 -C
 
 # To generate the QR code files:
-python file_to_qr.py <path_to_input_file> -c <chunk_size_in_bytes>
+python qrcode-split.py.py <path_to_input_file> -c <chunk_size_in_bytes>
 
 # For example:
-python file_to_qr.py input/input-1.mp4 -c 1900
+python qrcode-split.py.py input/input-1.mp4 -c 1900
 ```
