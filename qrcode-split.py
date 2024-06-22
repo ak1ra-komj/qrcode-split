@@ -60,6 +60,19 @@ def calculate_total_chunks(file_size, chunk_size):
     return math.ceil(file_size / chunk_size)
 
 
+def get_existing_indices(output_dir, prefix):
+    existing_files = os.listdir(output_dir)
+    indices = []
+    for file in existing_files:
+        if file.startswith(prefix) and file.endswith('.png'):
+            try:
+                index = int(file[len(prefix)+1:-4])
+                indices.append(index)
+            except ValueError:
+                continue
+    return sorted(indices)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Split a file into a series of QR code images.")
@@ -73,6 +86,8 @@ def main():
                         help="Calculate and print the count of QR code files needed without generating QR codes.")
     parser.add_argument("-p", "--processes", type=int, default=cpu_count(),
                         help="Number of processes to use (default: number of CPU cores).")
+    parser.add_argument("-r", "--resume", action='store_true',
+                        help="Resume generating QR codes from where it left off.")
 
     args = parser.parse_args()
 
@@ -91,9 +106,18 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     print(f'Splitting {args.file} into {total_chunks} QR codes.')
 
+    if args.resume:
+        existing_indices = get_existing_indices(output_dir, file_base_name)
+    else:
+        existing_indices = []
+
+    last_index = existing_indices[-1] if existing_indices else 0
+
     pool = Pool(processes=args.processes)
 
     for chunk, index in split_file_to_chunks(args.file, chunk_size):
+        if index <= last_index:
+            continue
         encoded_chunk = encode_chunk_to_base64(chunk)
         pool.apply_async(generate_qr_code, ((
             encoded_chunk, index, total_chunks, output_dir, file_base_name),))
