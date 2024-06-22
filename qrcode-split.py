@@ -6,22 +6,26 @@ import base64
 import math
 import qrcode
 from PIL import ImageDraw, ImageFont
+from multiprocessing import Pool, cpu_count
 
 
 def split_file_to_chunks(file_path, chunk_size):
     with open(file_path, 'rb') as f:
+        index = 1
         while True:
             chunk = f.read(chunk_size)
             if not chunk:
                 break
-            yield chunk
+            yield (chunk, index)
+            index += 1
 
 
 def encode_chunk_to_base64(chunk):
     return base64.b64encode(chunk).decode('utf-8')
 
 
-def generate_qr_code(data, index, total_count, output_dir, prefix):
+def generate_qr_code(data_info):
+    data, index, total_count, output_dir, prefix = data_info
     qr = qrcode.QRCode(
         version=40,  # Version 40 is the largest, can store up to 2953 bytes in binary mode
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -65,8 +69,10 @@ def main():
         "-o", "--output-dir", help="Directory to save the QR code images.", default=None)
     parser.add_argument("-c", "--chunk-size", type=int, default=1900,
                         help="Size of each chunk in bytes (default: 1900).")
-    parser.add_argument("-C", "--calc-files", action='store_true',
+    parser.add_argument("-C", "--calc", action='store_true',
                         help="Calculate and print the count of QR code files needed without generating QR codes.")
+    parser.add_argument("-p", "--processes", type=int, default=cpu_count(),
+                        help="Number of processes to use (default: number of CPU cores).")
 
     args = parser.parse_args()
 
@@ -77,7 +83,7 @@ def main():
     file_size = os.path.getsize(args.file)
     total_chunks = calculate_total_chunks(file_size, chunk_size)
 
-    if args.calc_files:
+    if args.calc:
         print(f'Total QR code files needed: {total_chunks}')
         return
 
@@ -85,10 +91,15 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     print(f'Splitting {args.file} into {total_chunks} QR codes.')
 
-    for i, chunk in enumerate(split_file_to_chunks(args.file, chunk_size)):
+    pool = Pool(processes=args.processes)
+
+    for chunk, index in split_file_to_chunks(args.file, chunk_size):
         encoded_chunk = encode_chunk_to_base64(chunk)
-        generate_qr_code(encoded_chunk, i + 1, total_chunks,
-                         output_dir, file_base_name)
+        pool.apply_async(generate_qr_code, ((
+            encoded_chunk, index, total_chunks, output_dir, file_base_name),))
+
+    pool.close()
+    pool.join()
 
 
 if __name__ == "__main__":
