@@ -4,6 +4,7 @@ import argparse
 import os
 import base64
 import math
+import sys
 import qrcode
 from PIL import ImageDraw, ImageFont
 from multiprocessing import Pool, cpu_count
@@ -51,7 +52,7 @@ def generate_qr_code(data_info):
 
     draw.text((text_x, text_y), text, font=font, fill='black')
 
-    img_path = os.path.join(output_dir, f'{prefix}_{index}.png')
+    img_path = os.path.join(output_dir, f'{prefix}_{index:0{len(str(total_count))}d}.png')
     img.save(img_path)
     print(f'Saved QR code {index} to {img_path}')
 
@@ -88,6 +89,8 @@ def main():
                         help="Number of processes to use (default: number of CPU cores).")
     parser.add_argument("-r", "--resume", action='store_true',
                         help="Resume generating QR codes from where it left off.")
+    parser.add_argument("-l", "--limit", type=int, default=sys.maxsize,
+                        help="Number of QR code images to generate.")
 
     args = parser.parse_args()
 
@@ -113,14 +116,18 @@ def main():
 
     last_index = existing_indices[-1] if existing_indices else 0
 
+    count = 0
     pool = Pool(processes=args.processes)
-
     for chunk, index in split_file_to_chunks(args.file, chunk_size):
         if index <= last_index:
             continue
-        encoded_chunk = encode_chunk_to_base64(chunk)
-        pool.apply_async(generate_qr_code, ((
-            encoded_chunk, index, total_chunks, output_dir, file_base_name),))
+        count += 1
+        if count <= args.limit:
+            encoded_chunk = encode_chunk_to_base64(chunk)
+            pool.apply_async(generate_qr_code, ((
+                encoded_chunk, index, total_chunks, output_dir, file_base_name),))
+        else:
+            break
 
     pool.close()
     pool.join()
